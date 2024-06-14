@@ -1,0 +1,43 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.9.34728.123
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "integratorApplication", "IntegrationApplication\integratorApplication.csproj", "{67EF322B-C119-4146-8948-71C4A472F6B7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aida.Sdk.Mini", "Aida.Sdk.Mini\src\Aida.Sdk.Mini\Aida.Sdk.Mini.csproj", "{A2E7DF30-0BF8-4978-9233-EAB542209379}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebhooksReceiver", "WebhooksReceiver\WebhooksReceiver.csproj", "{F6DF0D99-C940-45BC-9379-9D2CBC98CB53}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Samples.Integration.Webhooks", "Samples.Integration.Webhooks\Samples.Integration.Webhooks.csproj", "{8455B1D6-BCCA-4792-AFB0-2DEA9F0885FC}"
+EndProject
+Global
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {10EC324F-181A-49B7-AD89-7F8C2D79711F}
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{67EF322B-C119-4146-8948-71C4A472F6B7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{67EF322B-C119-4146-8948-71C4A472F6B7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{67EF322B-C119-4146-8948-71C4A472F6B7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{67EF322B-C119-4146-8948-71C4A472F6B7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A2E7DF30-0BF8-4978-9233-EAB542209379}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A2E7DF30-0BF8-4978-9233-EAB542209379}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A2E7DF30-0BF8-4978-9233-EAB542209379}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A2E7DF30-0BF8-4978-9233-EAB542209379}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F6DF0D99-C940-45BC-9379-9D2CBC98CB53}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F6DF0D99-C940-45BC-9379-9D2CBC98CB53}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F6DF0D99-C940-45BC-9379-9D2CBC98CB53}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F6DF0D99-C940-45BC-9379-9D2CBC98CB53}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8455B1D6-BCCA-4792-AFB0-2DEA9F0885FC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8455B1D6-BCCA-4792-AFB0-2DEA9F0885FC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8455B1D6-BCCA-4792-AFB0-2DEA9F0885FC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8455B1D6-BCCA-4792-AFB0-2DEA9F0885FC}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+EndGlobal

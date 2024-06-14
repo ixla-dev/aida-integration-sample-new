@@ -1,0 +1,10 @@
+@WebhooksReceiver_HostAddress = http://localhost:5005
+
+POST {{WebhooksReceiver_HostAddress}}/ixla/aida/v1/webhooks
+Accept: application/json
+Content-Type: application/json
+
+{
+  "MessageType" : ""
+}
+###
