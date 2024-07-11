@@ -211,7 +211,7 @@
                                          x:Name="NOfCards"
                                          Padding="0"
                                          Background="White"
-                                         Margin="20 0 600 20"
+                                         Margin="20 0 0 20"
                                          VerticalAlignment="Top"
                                          materialDesign:HintAssist.Hint="N of cards"
                                          AcceptsReturn="True"

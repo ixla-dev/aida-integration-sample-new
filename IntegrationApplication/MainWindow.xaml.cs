@@ -1,6 +1,5 @@
 ﻿using System.Data;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Windows;
@@ -10,15 +9,14 @@ using System.Windows.Threading;
 using Aida.Sdk.Mini.Api;
 using Aida.Sdk.Mini.Model;
 using integratorApplication.Backend;
-using integratorApplication.Controller;
 using integratorApplication.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Http.Logging;
 using Microsoft.Extensions.Logging;
-
-
 
 namespace integratorApplication
 {
@@ -40,9 +38,9 @@ namespace integratorApplication
         private DataTable _dataTable;
         private readonly IServiceProvider _serviceProvider;
         private IHost _webHost;
-        private string _JobStatus;
-        private string _JobStopReason;
-
+        private WorkflowSchedulerStatus _jobStatus;
+        private WorkflowSchedulerStopReason _JobStopReason;
+        private CancellationTokenSource _cancellationTokenSource;
         private readonly WebhooksHandler _webhooksHandler;
         
         public MainWindow()
@@ -56,7 +54,7 @@ namespace integratorApplication
             
             _pollingTimer = new DispatcherTimer
             {
-                Interval = TimeSpan.FromMilliseconds(200)
+                Interval = TimeSpan.FromMilliseconds(1000)
             };
             _pollingTimer.Tick += PollingWorkFlowState_Tick;
             _dataTable = new DataTable();
@@ -67,7 +65,17 @@ namespace integratorApplication
             {
                 Debug.WriteLine("message received");
                 OpenMessageDialog(e);
+                // Application.Current.Dispatcher.Invoke(() =>
+                // {
+                //     if (e.ErrorCode == JobErrorCodes.FeederEmpty)
+                //     {
+                //         ResumeJobBtn.IsEnabled = true;
+                //     }   
+                // });
+
             };
+            
+            
             _webhooksHandler = handler;
             // Configura e avvia l'host web
             _webHost = CreateHostBuilder().Build();
@@ -86,6 +94,17 @@ namespace integratorApplication
                 {
                     webBuilder.ConfigureServices(services =>
                     {
+                        services.AddHttpLogging(logging =>
+                        {
+                            logging.LoggingFields = HttpLoggingFields.All;
+                            logging.RequestHeaders.Add("sec-ch-ua");
+                            logging.ResponseHeaders.Add("MyResponseHeader");
+                            logging.MediaTypeOptions.AddText("application/javascript");
+                            logging.RequestBodyLogLimit = 4096;
+                            logging.ResponseBodyLogLimit = 4096;
+                            logging.CombineLogs = true;
+
+                        });
                         services.AddControllers();
                         services.AddSingleton(_ => _webhooksHandler);
                         services.AddSingleton(new JsonSerializerOptions
@@ -103,6 +122,15 @@ namespace integratorApplication
                             app.UseDeveloperExceptionPage();
                         }
 
+                        app.UseStaticFiles();
+                        app.UseHttpLogging(); 
+                        app.Use(async (context, next) =>
+                        {
+                            context.Response.Headers["MyResponseHeader"] =
+                                new string[] { "My Response Header Value" };
+
+                            await next();
+                        });                        
                         app.UseRouting();
                         app.UseEndpoints(endpoints =>
                         {
@@ -159,77 +187,75 @@ namespace integratorApplication
 
         private void OpenMessageDialog(WorkflowMessage e)
         {
+            if (e.ErrorCode != null && e.ErrorCode != JobErrorCodes.NoErrors)
             {
-                if (e.ErrorCode != null && e.ErrorCode != JobErrorCodes.NoErrors)
+                string? errorMessage = Enum.GetName(typeof(JobErrorCodes), e.ErrorCode);
+
+                Application.Current.Dispatcher.Invoke(() =>
                 {
-                    string? errorMessage = Enum.GetName(typeof(JobErrorCodes), e.ErrorCode);
-                    
-                    Application.Current.Dispatcher.Invoke(() =>
-                    {
-                        MessageSnackbar.IsActive = true;
-                        SnackbarText.Content = errorMessage;
-                    });  
-                }
-            };
+                    MessageSnackbar.IsActive = true;
+                    SnackbarText.Content = errorMessage;
+                    Task.Delay(5000);
+                    MessageSnackbar.IsActive = false;
+                });
+            }
+            if (e.MessageType == MessageType.EncoderLoaded)
+            {
+                EncodingTimer(e);
+            } 
+        }
+
+        private async void EncodingTimer(WorkflowMessage e)
+        {
+            
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                MessageSnackbar.IsActive = true;
+                SnackbarText.Content = $"Encoding...";
+            });
+            await Task.Delay(2000);
+            _integrationApi.SignalExternalProcessCompletedAsync(false,
+                new ExternalProcessCompletedMessage
+                {
+                    Outcome = ExternalProcessOutcome.Completed,
+                    WorkflowInstanceId = e.WorkflowInstanceId
+                });
+            Application.Current.Dispatcher.Invoke(() => { MessageSnackbar.IsActive = false; });
         }
 
         private async void PollingWorkFlowState_Tick(object? sender, EventArgs e)
         {
-            try
-            {
-                //ping the Machine
-                 _workflowSchedulerStateDto = await _integrationApi.GetWorkflowSchedulerStateAsync().ConfigureAwait(false);
-                _connectionStatus = ConnectionStatus.Connected;
-                Dispatcher.Invoke(UpdateUI);
-                
-                if (_workflowSchedulerStateDto.Status != null)
+                try
                 {
-                    _JobStatus = _workflowSchedulerStateDto.Status.ToString();
+                    // Ping the machine
+                    _workflowSchedulerStateDto = await _integrationApi.GetWorkflowSchedulerStateAsync().ConfigureAwait(false);                   
+                    _connectionStatus = ConnectionStatus.Connected;
+
+                    // Update the UI
+                    Application.Current.Dispatcher.Invoke(UpdateUI);
+
+                    // Load data 
+                    Application.Current.Dispatcher.Invoke(LoadData);
                     
-                    //loading of polling data only if the job is active
-                    if (_workflowSchedulerStateDto.Status == WorkflowSchedulerStatus.Starting ||
-                        _workflowSchedulerStateDto.Status == WorkflowSchedulerStatus.Waiting ||
-                        _workflowSchedulerStateDto.Status == WorkflowSchedulerStatus.Running
-                        )
+                    _jobStatus = _workflowSchedulerStateDto.Status ?? WorkflowSchedulerStatus.Stopped;
+                    _JobStopReason = _workflowSchedulerStateDto.StopReason ?? WorkflowSchedulerStopReason.ManualStop;
+
+                    // Update UI controls
+                    Application.Current.Dispatcher.Invoke(() =>
                     {
-                        Dispatcher.Invoke(LoadData);
-                    }
+                        StatusTextBlock.Text = $"Status: {_jobStatus}";
+                        StopReasonTextBlock.Text = $"Stop Reason: {_JobStopReason}";
+                        ProgressBar.IsIndeterminate = (_jobStatus == WorkflowSchedulerStatus.Running ||
+                                                       _jobStatus == WorkflowSchedulerStatus.Starting ||
+                                                       _jobStatus == WorkflowSchedulerStatus.Waiting);
+                    });
                 }
-                else
+                catch (Exception exception)
                 {
-                    _JobStatus = " - ";
+                    Console.WriteLine("Disconnected");
+                    _connectionStatus = ConnectionStatus.Disconnected;
+                    Application.Current.Dispatcher.Invoke(UpdateUI);
                 }
-                if (_workflowSchedulerStateDto.StopReason != null)
-                {
-                    _JobStopReason = _workflowSchedulerStateDto.StopReason.ToString();
-                }
-                else
-                {
-                    _JobStopReason = " - ";
-                }
-                
-                Application.Current.Dispatcher.Invoke(( )=>
-                {
-                    StatusTextBlock.Text = $"Status: {_JobStatus}";
-                    StopReasonTextBlock.Text = $"Stop Reason: {_JobStopReason}";
-                    if ( _JobStatus == WorkflowSchedulerStatus.Running.ToString() ||
-                        _JobStatus == WorkflowSchedulerStatus.Starting.ToString() ||
-                        _JobStatus == WorkflowSchedulerStatus.Waiting.ToString())
-                    {
-                        ProgressBar.IsIndeterminate = true;
-                    }
-                    else
-                    {
-                        ProgressBar.IsIndeterminate = false;
-                    }
-                });
-            }
-            catch (Exception exception)
-            {
-                Console.WriteLine("Disconnected");
-                _connectionStatus = ConnectionStatus.Disconnected;
-                Dispatcher.Invoke(() => UpdateUI());
-            }
         }
 
         #region Windows tools
@@ -253,7 +279,7 @@ namespace integratorApplication
         //at change of JT selection do the Request DET_Table Name and select by Name all record.Finally print record into the DataGrid
         public async void JobTemplateSelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (JobTemplateComboBox.SelectionBoxItem != null || JobTemplateComboBox.SelectionBoxItem != "")
+            if (JobTemplateComboBox.SelectionBoxItem != null || (string)JobTemplateComboBox.SelectionBoxItem! != "")
             {
                 JobTemplateDto selectedJobTemplateDto = (JobTemplateDto)JobTemplateComboBox.SelectedItem;
                 _entityDescriptors =
@@ -300,6 +326,7 @@ namespace integratorApplication
             catch (Exception e)
             {
                 Console.WriteLine(e);
+                Console.WriteLine(e);
             }
         }
 
@@ -307,6 +334,7 @@ namespace integratorApplication
         {
             var tablename = _detDefinition.TableName;
             _dbPgManager.InsertEmptyRecord(_entityDescriptors, tablename);
+            LoadData();
         }
 
         private void InsertIntegratorDataBtn_Click(object sender, RoutedEventArgs e)
@@ -318,6 +346,7 @@ namespace integratorApplication
                 if (data.Count == 0)
                     return;
                 _dbPgManager.InsertIntegratorData(_entityDescriptors, tableName, data);
+                LoadData();
             }
             catch (Exception exception)
             {
@@ -344,12 +373,6 @@ namespace integratorApplication
             }
         }
 
-        private void OpenIssuanceViewWindows()
-        {
-            var issuanceViewWindows = new Issuance_View_Windows(_workflowSchedulerStateDto);
-            issuanceViewWindows.Show();
-        }
-
         private async Task<DataExchangeTableDefinition> GetDET(int jobid)
         {
             try
@@ -371,13 +394,7 @@ namespace integratorApplication
         {
             try
             {
-                Dispatcher.Invoke(() =>
-                {
-                    StartJobBtn.IsEnabled = false;
-                    StopJobBtn.IsEnabled = true;
-                    StopJobAndCurrentRecordBtn.IsEnabled = true;
-                });
-                
+                Dispatcher.Invoke(UpdateUI);
                 
                 int stopAfter = 0;
 
@@ -412,13 +429,8 @@ namespace integratorApplication
         {
             try
             {
-                await _integrationApi.StopWorkflowSchedulerAsync(false, JobErrorCodes.ManualStop);
-                Dispatcher.Invoke(() =>
-                {
-                    ResumeJobBtn.IsEnabled = true;
-                    StopJobBtn.IsEnabled = false;
-                });
-                
+                await _integrationApi.StopWorkflowSchedulerAsync(false);
+                Dispatcher.Invoke(UpdateUI);
             }
             catch (Exception exception)
             {
@@ -430,16 +442,8 @@ namespace integratorApplication
         {
             try
             {
-                await _integrationApi.StopWorkflowSchedulerAsync(true, JobErrorCodes.ManualStop);
-                Dispatcher.Invoke(() =>
-                {
-                    StartJobBtn.IsEnabled = true;
-                    StopJobBtn.IsEnabled = false;
-                    StopJobAndCurrentRecordBtn.IsEnabled = false;
-                    ResumeJobBtn.IsEnabled = false;
-                });
-                
-                
+                await _integrationApi.StopWorkflowSchedulerAsync(true).ConfigureAwait(false);
+                Dispatcher.Invoke(UpdateUI);
             }
             catch (Exception exception)
             {
@@ -451,9 +455,9 @@ namespace integratorApplication
         {
             try
             {
-                Dispatcher.Invoke(() => { ResumeJobBtn.IsEnabled = false; });
-                await _integrationApi.ResumeWorkflowSchedulerAsync();
-                StopJobBtn.IsEnabled = true;
+                _cancellationTokenSource = new CancellationTokenSource();
+                await _integrationApi.ResumeWorkflowSchedulerAsync(_cancellationTokenSource.Token);
+                Dispatcher.Invoke(UpdateUI);
             }
             catch (Exception exception)
             {
@@ -463,20 +467,19 @@ namespace integratorApplication
 
         #endregion
 
-
         private void ClearRecordsBtn_Click(object sender, RoutedEventArgs e)
         {
             try
             {
                 _dbPgManager.ClearTable(_detDefinition.TableName);
+                LoadData();
             }
             catch (Exception exception)
             {
                 Console.WriteLine(exception);
             }
         }
-
-
+        
         private void UpdateUI()
         {
             if (_connectionStatus == ConnectionStatus.Connected && JobTemplateComboBox.SelectionBoxItem != null &&
@@ -502,31 +505,40 @@ namespace integratorApplication
             // TODO not all conditions were managed
             //
             
-            // if (_workflowSchedulerStateDto.Status == WorkflowSchedulerStatus.Starting 
-            //     || _workflowSchedulerStateDto.Status == WorkflowSchedulerStatus.Running 
-            //     || _workflowSchedulerStateDto.Status == WorkflowSchedulerStatus.Waiting 
-            //     )
-            // {
-            //     StartJobBtn.IsEnabled = false;
-            //     StopJobBtn.IsEnabled = true;
-            //     StopJobAndCurrentRecordBtn.IsEnabled = true;
-            //     ResumeJobBtn.IsEnabled = false;
-            // }
-            //
-            // if (_workflowSchedulerStateDto.Status == WorkflowSchedulerStatus.Error 
-            //     || _workflowSchedulerStateDto.Status == WorkflowSchedulerStatus.Stopped
-            //     )
-            // {
-            //     StartJobBtn.IsEnabled = true;
-            //     StopJobBtn.IsEnabled = false;
-            //     StopJobAndCurrentRecordBtn.IsEnabled = true;
-            //     ResumeJobBtn.IsEnabled = false;
-            // }
-            //
+            if (_workflowSchedulerStateDto.Status == WorkflowSchedulerStatus.Starting 
+                || _workflowSchedulerStateDto.Status == WorkflowSchedulerStatus.Running 
+                || _workflowSchedulerStateDto.Status == WorkflowSchedulerStatus.Waiting 
+                )
+            {
+                StartJobBtn.IsEnabled = false;
+                StopJobBtn.IsEnabled = true;
+                StopJobAndCurrentRecordBtn.IsEnabled = true;
+                ResumeJobBtn.IsEnabled = false;
+            }
+            //stopping status is when StopWorkflowScheduler(false)
+            if (_workflowSchedulerStateDto.Status == WorkflowSchedulerStatus.Stopping)
+            {
+                StartJobBtn.IsEnabled = false;
+                StopJobBtn.IsEnabled = false;
+                StopJobAndCurrentRecordBtn.IsEnabled = true;
+                ResumeJobBtn.IsEnabled = true;
+            }
             
-            if (_workflowSchedulerStateDto.Status == WorkflowSchedulerStatus.FeederEmpty 
-                || _workflowSchedulerStateDto.StopReason == WorkflowSchedulerStopReason.CardJam 
-               )
+            if ((_workflowSchedulerStateDto.Status == WorkflowSchedulerStatus.Error 
+                || _workflowSchedulerStateDto.Status == WorkflowSchedulerStatus.Stopped) 
+                && (_connectionStatus == ConnectionStatus.Connected && 
+                    JobTemplateComboBox.SelectionBoxItem != null &&
+                    JobTemplateComboBox.SelectionBoxItem != "")
+                )
+            {
+                StartJobBtn.IsEnabled = true;
+                StopJobBtn.IsEnabled = false;
+                StopJobAndCurrentRecordBtn.IsEnabled = false;
+                ResumeJobBtn.IsEnabled = false;
+            }
+            
+            if (_workflowSchedulerStateDto.StopReason == WorkflowSchedulerStopReason.FeederEmpty
+                || _workflowSchedulerStateDto.StopReason == WorkflowSchedulerStopReason.CardJam)
             {
                 StartJobBtn.IsEnabled = false;
                 StopJobBtn.IsEnabled = true;
@@ -534,7 +546,6 @@ namespace integratorApplication
                 ResumeJobBtn.IsEnabled = true;
             }
         }
-        
         private void SnackbarMessage_ActionClick(object sender, RoutedEventArgs e)
         {
             MessageSnackbar.IsActive = false;
