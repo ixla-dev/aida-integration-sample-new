@@ -1,4 +1,5 @@
 using System.Data;
+using System.IO;
 using System.Windows;
 using System.Windows.Documents;
 using Aida.Sdk.Mini.Model;
@@ -125,6 +126,43 @@ public class dbPgManager
         }
         return dataTable;
     }
+    
+    public DataTable GetDataForUI(string detName)
+    {
+        DataTable dataTable = new DataTable();
+        try
+        {
+            string query = $@"SELECT job_status, workflow_id, workflow_status, error_detail, ""front_datapageHID_lady_003__Name"",""front_datapageHID_lady_004__Surname""
+                            FROM {detName} ORDER BY job_status DESC";
+
+            using (var command = new NpgsqlCommand(query, _pgConn))
+            {
+                using (var reader = command.ExecuteReader())
+                {
+                    // Add dynamic columns
+                    for (int i = 0; i < reader.FieldCount; i++)
+                    {
+                        dataTable.Columns.Add(reader.GetName(i), reader.GetFieldType(i));
+                    }
+                    // Add rows
+                    while (reader.Read())
+                    {
+                        DataRow row = dataTable.NewRow();
+                        for (int i = 0; i < reader.FieldCount; i++)
+                        {
+                            row[i] = reader.GetValue(i);
+                        }
+                        dataTable.Rows.Add(row);
+                    }
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+        }
+        return dataTable;
+    }
 
     
 
@@ -161,48 +199,166 @@ public class dbPgManager
         }
     }
 
-
-    public void InsertIntegratorData(List<EntityDescriptor> columns, string detName, List<IntegratorData> dataList)
+    public List<string> GetTableColumns(string tableName)
     {
-        try
+        var columns = new List<string>();
+        // Rimuovi i doppi apici dal nome della tabella, se presenti
+        string cleanedTableName = tableName.Trim('"');
+
+        // Ora usa `cleanedTableName` nella query senza i doppi apici
+        string query = $@"
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_name = @tableName
+        AND table_schema = 'public'";
+
+        using (var command = new NpgsqlCommand(query, _pgConn))
         {
-            foreach (var record in dataList)
+            command.Parameters.AddWithValue("@tableName", cleanedTableName);
+
+            using (var reader = command.ExecuteReader())
             {
-                // create columnName and columnValues List
-                string columnNames = string.Join(", ", columns.Select(c => $"\"{c.EntityName}\""));
-
-                // build query
-                string query = $@"
-                    INSERT INTO {detName}
-                    ({columnNames})
-                    VALUES 
-                    (@Name,
-                     @LName,
-                     @Surname,
-                     @LSurname,
-                     @DateOfBirth,
-                     @LDateOfBirth,
-                     @Photo)";
-
-                using (var command = new NpgsqlCommand(query, _pgConn))
+                while (reader.Read())
                 {
-                    command.Parameters.AddWithValue("@Name",record.FrontName);
-                    command.Parameters.AddWithValue("@LName",record.FrontLblName);
-                    command.Parameters.AddWithValue("@Surname",record.FrontSurname);
-                    command.Parameters.AddWithValue("@LSurname",record.FrontLblSurname);
-                    command.Parameters.AddWithValue("@DateOfBirth",record.FrontDateOfBirth);
-                    command.Parameters.AddWithValue("@LDateOfBirth",record.FrontLblDateOfBirth);
-                    command.Parameters.AddWithValue("@Photo",DBNull.Value);
-                    
-                    command.ExecuteNonQuery();
+                    columns.Add(reader.GetString(0));
                 }
             }
         }
-        catch (Exception ex)
+        return columns;
+    }
+
+public void InsertCsvData(string detName, List<EntityDescriptor> entities, List<string[]> csvRows)
+{
+    // Percorso base delle immagini
+    string imagePathBase = @"C:\code\img\";
+
+    if (!Directory.Exists(imagePathBase))
+    {
+        throw new DirectoryNotFoundException($"Image path base does not exist: {imagePathBase}");
+    }
+
+    foreach (var row in csvRows)
+    {
+        if (row.Length != entities.Count)
         {
-            Console.WriteLine("Insert record error: " + ex.Message);
+            throw new InvalidOperationException(
+                "The number of values in the CSV row does not match the number of columns.");
+        }
+
+        // Raccogli i nomi delle colonne tra doppi apici
+        var quotedColumns = entities.Select(entity => $"\"{entity.EntityName}\"").ToList();
+        var parameterPlaceholders = entities.Select((_, index) => $"@value{index}").ToList();
+
+        // Costruisci la query SQL
+        string query = $@"
+        INSERT INTO {detName}
+        ({string.Join(", ", quotedColumns)})
+        VALUES
+        ({string.Join(", ", parameterPlaceholders)})";
+
+        using (var command = new NpgsqlCommand(query, _pgConn))
+        {
+            for (int i = 0; i < entities.Count; i++)
+            {
+                var entity = entities[i];
+                string value = row[i];
+
+                if (!string.IsNullOrEmpty(entity.ValueType.ToString()) &&
+                    (string.Equals(entity.ValueType.ToString(), "Image", StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(entity.ValueType.ToString(), "InkjetImage", StringComparison.OrdinalIgnoreCase)) &&
+                    !string.IsNullOrEmpty(value))
+                {
+                    // Costruisci il percorso completo del file immagine
+                    string fullImagePath = Path.Combine(imagePathBase, value);
+
+                    if (File.Exists(fullImagePath))
+                    {
+                        // Leggi il file immagine come array di byte
+                        byte[] imageBytes = File.ReadAllBytes(fullImagePath);
+
+                        // Aggiungi il parametro come array di byte
+                        command.Parameters.AddWithValue($"@value{i}", imageBytes);
+                    }
+                    else
+                    {
+                        Console.WriteLine($"File not found: {fullImagePath}");
+                        command.Parameters.AddWithValue($"@value{i}", DBNull.Value);
+                    }
+                }
+                else
+                {
+                    // Aggiungi il valore normale come parametro
+                    command.Parameters.AddWithValue($"@value{i}",
+                        string.IsNullOrEmpty(value) ? DBNull.Value : (object)value);
+                }
+            }
+
+            // Esegui la query
+            command.ExecuteNonQuery();
         }
     }
+}
+
+    
+
+
+
+
+public void InsertIntegratorData(List<EntityDescriptor> columns, string detName, List<IntegratorData> dataList)
+{
+    try
+    {
+        foreach (var record in dataList)
+        {
+            // Create columnNames and parameter placeholders
+            string columnNames = string.Join(", ", columns.Select(c => $"\"{c.EntityName}\""));
+            string parameterNames = string.Join(", ", columns.Select((c, index) => $"@param{index}"));
+
+            // Build the query
+            string query = $@"
+                INSERT INTO {detName}
+                ({columnNames})
+                VALUES 
+                ({parameterNames})";
+
+            using (var command = new NpgsqlCommand(query, _pgConn))
+            {
+                // Add parameters dynamically for each column
+                for (int i = 0; i < columns.Count; i++)
+                {
+                    var column = columns[i];
+                    var value = GetValueForColumn(record, column.EntityName); // You need a method to get the value dynamically
+
+                    // Add the parameter to the command
+                    command.Parameters.AddWithValue($"@param{i}", value ?? DBNull.Value);
+                }
+
+                // Execute the query
+                command.ExecuteNonQuery();
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine("Insert record error: " + ex.Message);
+    }
+}
+
+// This method is needed to retrieve the correct value from the record dynamically
+private object GetValueForColumn(IntegratorData record, string columnName)
+{
+    switch (columnName)
+    {
+        case "TextFront":
+            return record.TextFront;
+        case "ImgFront":
+            return record.ImgFront;
+        // Add other cases here for each field in IntegratorData
+        default:
+            return null;
+    }
+}
+
 
     public void ClearTable(string detName)
     {

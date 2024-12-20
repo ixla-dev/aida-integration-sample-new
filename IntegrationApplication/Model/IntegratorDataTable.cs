@@ -2,47 +2,42 @@ namespace integratorApplication.Backend;
 
 public class IntegratorData
 {
-    public string? FrontLblName { get; set; }
-    public string? FrontName { get; set; }
-    public string? FrontLblSurname { get; set; }
-    public string? FrontSurname { get; set; }
-    public string? FrontLblDateOfBirth { get; set; }
-    public string? FrontDateOfBirth { get; set; }
-    public string? FrontPhoto { get; set; }
+    public string? TextFront { get; set; }
+    public string? ImgFront { get; set; }
+    public string? TextRear { get; set; }
+    public string? Magnetic_track_1_w { get; set; }
+    public string? Magnetic_track_2_w { get; set; }
+    public string? Magnetic_track_3_w { get; set; }
+
     
 
     public IntegratorData(
-        string? frontLblName,
-        string? frontName,
-        string? frontLblSurname,
-        string? frontSurname,
-        string? frontLblDateOfBirth,
-        string? frontDateOfBirth,
-        string? frontPhoto)
+        string? textFront,
+        string? imgFront,
+        string? textRear,
+        string? magnetic_track_1_w,
+        string? magnetic_track_2_w,
+        string? magnetic_track_3_w)
 
     {
-        FrontLblName = frontLblName;
-        FrontName = frontName;
-        FrontLblSurname = frontLblSurname;
-        FrontSurname = frontSurname;
-        FrontLblDateOfBirth   = frontLblDateOfBirth;
-        FrontDateOfBirth = frontDateOfBirth;
-        FrontPhoto = frontPhoto;
-
+        TextFront = textFront;
+        ImgFront = imgFront;
+        TextRear = textRear;
+        Magnetic_track_1_w = magnetic_track_1_w;
+        Magnetic_track_2_w = magnetic_track_2_w;
+        Magnetic_track_3_w = magnetic_track_3_w;
     }
     
     public string[] GetColumnValues()
     {
         return new string[]
         {
-            FrontLblName,
-            FrontName,
-            FrontLblSurname,
-            FrontSurname,
-            FrontLblDateOfBirth,
-            FrontDateOfBirth,
-            FrontPhoto
-
+            TextFront,
+            ImgFront,
+            TextRear,
+            Magnetic_track_1_w,
+            Magnetic_track_2_w,
+            Magnetic_track_3_w
         };
     }
 }

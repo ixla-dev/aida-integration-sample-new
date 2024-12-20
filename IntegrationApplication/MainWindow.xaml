@@ -137,7 +137,7 @@
                             </TextBlock>
 
                             <TextBox
-                                Text="192.168.3.105"
+                                Text="192.168.3.141"
                                 Name="MachineAddress"
                                 VerticalAlignment="Top"
                                 materialDesign:HintAssist.Hint="IP Machine Address example: 192.168.3.105"
@@ -300,6 +300,7 @@
                                 <ColumnDefinition Width="Auto"></ColumnDefinition>
                                 <ColumnDefinition Width="Auto"></ColumnDefinition>
                                 <ColumnDefinition Width="Auto"></ColumnDefinition>
+                                <ColumnDefinition Width="Auto"></ColumnDefinition>
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0" Margin="10">
                                 <Button
@@ -327,6 +328,16 @@
                                     Click="InsertIntegratorDataBtn_Click"
                                     Width="auto"
                                     Content="Insert integrator data"
+                                    IsEnabled="False"
+                                    Style="{StaticResource MaterialDesignOutlinedButton}"
+                                    ToolTip="MaterialDesignOutlinedButton" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="3" Margin="10">
+                                <Button
+                                    Name="InsertCsvDataBtn"
+                                    Click="InsertCsvDataBtn_Click"
+                                    Width="auto"
+                                    Content="Insert CSV data"
                                     IsEnabled="False"
                                     Style="{StaticResource MaterialDesignOutlinedButton}"
                                     ToolTip="MaterialDesignOutlinedButton" />

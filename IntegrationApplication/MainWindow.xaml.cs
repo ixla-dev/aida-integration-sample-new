@@ -1,5 +1,6 @@
 ﻿using System.Data;
 using System.Diagnostics;
+using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Windows;
@@ -46,7 +47,6 @@ namespace integratorApplication
         public MainWindow()
         {
             InitializeComponent();
-            
             var services = new ServiceCollection();
             ConfigureServices(services);
             _serviceProvider = services.BuildServiceProvider();
@@ -54,7 +54,7 @@ namespace integratorApplication
             
             _pollingTimer = new DispatcherTimer
             {
-                Interval = TimeSpan.FromMilliseconds(1000)
+                Interval = TimeSpan.FromMilliseconds(5000)
             };
             _pollingTimer.Tick += PollingWorkFlowState_Tick;
             _dataTable = new DataTable();
@@ -65,13 +65,6 @@ namespace integratorApplication
             {
                 Debug.WriteLine("message received");
                 OpenMessageDialog(e);
-                // Application.Current.Dispatcher.Invoke(() =>
-                // {
-                //     if (e.ErrorCode == JobErrorCodes.FeederEmpty)
-                //     {
-                //         ResumeJobBtn.IsEnabled = true;
-                //     }   
-                // });
 
             };
             
@@ -198,6 +191,7 @@ namespace integratorApplication
                     Task.Delay(5000);
                     MessageSnackbar.IsActive = false;
                 });
+                Console.WriteLine($"Webhooks ---> {errorMessage}");
             }
             if (e.MessageType == MessageType.EncoderLoaded)
             {
@@ -213,7 +207,7 @@ namespace integratorApplication
                 MessageSnackbar.IsActive = true;
                 SnackbarText.Content = $"Encoding...";
             });
-            await Task.Delay(2000);
+            //await Task.Delay(2000);
             _integrationApi.SignalExternalProcessCompletedAsync(false,
                 new ExternalProcessCompletedMessage
                 {
@@ -302,7 +296,7 @@ namespace integratorApplication
         {
             if (JobTemplateComboBox.SelectedItem != null && JobTemplateComboBox.SelectedIndex != -1)
             {
-                _dataTable = _dbPgManager.SelectAllFromDET(_detDefinition.TableName);
+                _dataTable = _dbPgManager.GetDataForUI(_detDefinition.TableName);
                 DETDataGrid.ItemsSource = _dataTable.DefaultView;
             }
         }
@@ -347,6 +341,67 @@ namespace integratorApplication
                     return;
                 _dbPgManager.InsertIntegratorData(_entityDescriptors, tableName, data);
                 LoadData();
+            }
+            catch (Exception exception)
+            {
+                Console.WriteLine(exception);
+                throw;
+            }
+        }
+        
+        
+        //Get Entities Name when JT is selected and extract the only entities that contain Personalization Data
+        private List<EntityDescriptor> GetEntitiesName()
+        {
+            var jobId = _selectedJobTemplateDto.Id;
+            if(jobId is null)
+                jobId = -1;
+            try
+            {
+                var entities =  _integrationApi.GetEntityDescriptorsByJobTemplateId(jobId.Value);
+
+                return entities;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
+            }
+        }
+        
+        //Get data that contains personalization for the insert into the DetTable
+        private List<string[]> GetCsvData()
+        {
+            string filePath = "C:\\det_data.csv";
+            var rows = new List<string[]>();
+
+            using (var reader = new StreamReader(filePath))
+            {
+                while (!reader.EndOfStream)
+                {
+                    string line = reader.ReadLine();
+                    string[] values = line.Split(';');
+                    rows.Add(values);
+                }
+            }
+            return rows;
+        }
+        
+        
+        private void InsertCsvDataBtn_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                _pollingTimer.Stop();
+                var entities = GetEntitiesName();
+                var csvRows = GetCsvData();
+                
+                if (entities is null || csvRows is null)
+                    return;
+                
+                _dbPgManager.InsertCsvData(_detDefinition.TableName, entities, csvRows);
+                LoadData();
+                _pollingTimer.Start();
             }
             catch (Exception exception)
             {
@@ -490,6 +545,7 @@ namespace integratorApplication
                 ClearRecordsBtn.IsEnabled = true;
                 InsertEmptyJobRecordBtn.IsEnabled = true;
                 InsertIntegratorDataBtn.IsEnabled = true;
+                InsertCsvDataBtn.IsEnabled = true;
             }
 
             if (_connectionStatus == ConnectionStatus.Disconnected && JobTemplateComboBox.SelectionBoxItem == null)
@@ -499,6 +555,7 @@ namespace integratorApplication
                 ClearRecordsBtn.IsEnabled = false;
                 InsertEmptyJobRecordBtn.IsEnabled = false;
                 InsertIntegratorDataBtn.IsEnabled = false;
+                InsertCsvDataBtn.IsEnabled = false;
             }
             
             //   
