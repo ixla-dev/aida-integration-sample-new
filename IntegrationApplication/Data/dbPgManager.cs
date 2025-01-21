@@ -229,8 +229,8 @@ public class dbPgManager
 
 public void InsertCsvData(string detName, List<EntityDescriptor> entities, List<string[]> csvRows)
 {
-    // Percorso base delle immagini
-    string imagePathBase = @"C:\code\img\";
+    // image bbasepath
+    string imagePathBase = Path.Combine(Directory.GetCurrentDirectory(), "Asset", "img");
 
     if (!Directory.Exists(imagePathBase))
     {
@@ -245,11 +245,11 @@ public void InsertCsvData(string detName, List<EntityDescriptor> entities, List<
                 "The number of values in the CSV row does not match the number of columns.");
         }
 
-        // Raccogli i nomi delle colonne tra doppi apici
+        // Column Name in double quotation mark
         var quotedColumns = entities.Select(entity => $"\"{entity.EntityName}\"").ToList();
         var parameterPlaceholders = entities.Select((_, index) => $"@value{index}").ToList();
-
-        // Costruisci la query SQL
+        
+        //query
         string query = $@"
         INSERT INTO {detName}
         ({string.Join(", ", quotedColumns)})
@@ -265,18 +265,19 @@ public void InsertCsvData(string detName, List<EntityDescriptor> entities, List<
 
                 if (!string.IsNullOrEmpty(entity.ValueType.ToString()) &&
                     (string.Equals(entity.ValueType.ToString(), "Image", StringComparison.OrdinalIgnoreCase) ||
-                     string.Equals(entity.ValueType.ToString(), "InkjetImage", StringComparison.OrdinalIgnoreCase)) &&
+                     string.Equals(entity.ValueType.ToString(), "InkjetImage", StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(entity.ValueType.ToString(), "Signature", StringComparison.OrdinalIgnoreCase)) &&
                     !string.IsNullOrEmpty(value))
                 {
-                    // Costruisci il percorso completo del file immagine
+                    // path with image name
                     string fullImagePath = Path.Combine(imagePathBase, value);
 
                     if (File.Exists(fullImagePath))
                     {
-                        // Leggi il file immagine come array di byte
+                        // read image like byte array
                         byte[] imageBytes = File.ReadAllBytes(fullImagePath);
 
-                        // Aggiungi il parametro come array di byte
+                        // add byte array
                         command.Parameters.AddWithValue($"@value{i}", imageBytes);
                     }
                     else
@@ -287,13 +288,11 @@ public void InsertCsvData(string detName, List<EntityDescriptor> entities, List<
                 }
                 else
                 {
-                    // Aggiungi il valore normale come parametro
                     command.Parameters.AddWithValue($"@value{i}",
                         string.IsNullOrEmpty(value) ? DBNull.Value : (object)value);
                 }
             }
-
-            // Esegui la query
+            // Esecute query
             command.ExecuteNonQuery();
         }
     }

@@ -6,6 +6,10 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <VersionPrefix>1.0.0</VersionPrefix>
+    <VersionSuffix>0</VersionSuffix>
+    <AssemblyInformationalVersion>$(VersionPrefix)$(VersionSuffix)</AssemblyInformationalVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -27,6 +31,34 @@
   <ItemGroup>
     <None Remove="Asset\aida.png" />
     <Resource Include="Asset\aida.png" />
+    <None Remove="Asset\img\Photo1.bmp" />
+    <Content Include="Asset\img\Photo1.bmp">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <None Remove="Asset\img\Photo2.bmp" />
+    <Content Include="Asset\img\Photo2.bmp">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <None Remove="Asset\img\Photo3.bmp" />
+    <Content Include="Asset\img\Photo3.bmp">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <None Remove="Asset\img\Signature1.bmp" />
+    <Content Include="Asset\img\Signature1.bmp">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <None Remove="Asset\img\Signature2.bmp" />
+    <Content Include="Asset\img\Signature2.bmp">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <None Remove="Asset\img\Signature3.bmp" />
+    <Content Include="Asset\img\Signature3.bmp">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <None Remove="Asset\det_data.csv" />
+    <Content Include="Asset\det_data.csv">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
   <ItemGroup>
@@ -43,3 +75,6 @@
   </ItemGroup>
 
 </Project>
+
+
+

@@ -372,7 +372,7 @@ namespace integratorApplication
         //Get data that contains personalization for the insert into the DetTable
         private List<string[]> GetCsvData()
         {
-            string filePath = "C:\\det_data.csv";
+            string filePath = Path.Combine(Directory.GetCurrentDirectory(), "Asset", "det_data.csv");
             var rows = new List<string[]>();
 
             using (var reader = new StreamReader(filePath))
