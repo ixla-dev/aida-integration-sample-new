@@ -153,7 +153,6 @@ namespace integratorApplication
             _integrationApi = new IntegrationApi(BASE_PATH);
             _dbPgManager = new dbPgManager();
             _dbSqlLiteManager = new dbSqlLiteManager();
-            //_pollingTimer.Start();
 
             // Connect to Machine
             var wfState = await _integrationApi.GetWorkflowSchedulerStateAsync();
@@ -280,6 +279,9 @@ namespace integratorApplication
                     await _integrationApi.GetEntityDescriptorsByJobTemplateIdAsync(selectedJobTemplateDto.Id ?? 0);
                 _detDefinition = await GetDET(selectedJobTemplateDto.Id ?? 0); //if null then 0
                 _selectedJobTemplateDto = selectedJobTemplateDto;
+
+                var entities = GetEntitiesName();
+                CreateEmptyCsvFile(entities);
                 
                 //select all records from det when the job template was selected, and show the results in datagrid.
                 Dispatcher.Invoke(LoadData);
@@ -368,23 +370,50 @@ namespace integratorApplication
                 throw;
             }
         }
+
+        private void CreateEmptyCsvFile(List<EntityDescriptor> entities)
+        {
+            var tableName = _detDefinition.TableName;
+            tableName = tableName.Replace("\"", ""); 
+            var csvName = tableName + ".csv";
+            
+            string filePath = Path.Combine(Directory.GetCurrentDirectory(), "Asset", csvName);
+
+            if (!Directory.Exists(Path.GetDirectoryName(filePath)))
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(filePath));
+            }
+
+            if (!File.Exists(filePath))
+            {
+                using (StreamWriter sw = File.CreateText(filePath))
+                {
+                    foreach (var entity in entities)
+                    {
+                        sw.Write(entity.EntityName + ";");
+                    }
+                }
+            }
+        }
+
         
         //Get data that contains personalization for the insert into the DetTable
         private List<string[]> GetCsvData()
         {
-            string filePath = Path.Combine(Directory.GetCurrentDirectory(), "Asset", "det_data.csv");
-            var rows = new List<string[]>();
+            var tableName = _detDefinition.TableName;
+            tableName = tableName.Replace("\"", "");
+            string filePath = Path.Combine(Directory.GetCurrentDirectory(), "Asset", tableName + ".csv");
 
-            using (var reader = new StreamReader(filePath))
+            var lines = File.ReadAllLines(filePath);
+            var data = new List<string[]>();
+            
+            foreach (var line in lines)
             {
-                while (!reader.EndOfStream)
-                {
-                    string line = reader.ReadLine();
-                    string[] values = line.Split(';');
-                    rows.Add(values);
-                }
+                var values = line.Split(';');
+                data.Add(values);
             }
-            return rows;
+
+            return data;
         }
         
         
