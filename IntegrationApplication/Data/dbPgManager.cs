@@ -132,7 +132,7 @@ public class dbPgManager
         DataTable dataTable = new DataTable();
         try
         {
-            string query = $@"SELECT job_status, workflow_id, workflow_status, error_detail, ""front_datapageHID_lady_003__Name"",""front_datapageHID_lady_004__Surname""
+            string query = $@"SELECT job_status, workflow_id, workflow_status, error_detail
                             FROM {detName} ORDER BY job_status DESC";
 
             using (var command = new NpgsqlCommand(query, _pgConn))
@@ -229,7 +229,7 @@ public class dbPgManager
 
 public void InsertCsvData(string detName, List<EntityDescriptor> entities, List<string[]> csvRows)
 {
-    // image bbasepath
+    // image basepath
     string imagePathBase = Path.Combine(Directory.GetCurrentDirectory(), "Asset", "img");
 
     if (!Directory.Exists(imagePathBase))
@@ -237,7 +237,7 @@ public void InsertCsvData(string detName, List<EntityDescriptor> entities, List<
         throw new DirectoryNotFoundException($"Image path base does not exist: {imagePathBase}");
     }
 
-    foreach (var row in csvRows)
+    foreach (var row in csvRows.Skip(1))
     {
         if (row.Length != entities.Count)
         {
