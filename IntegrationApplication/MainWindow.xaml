@@ -133,7 +133,7 @@
 
                         <StackPanel Grid.Row="1">
                             <TextBlock Padding="5">
-                                Connections:
+                                Connection:
                             </TextBlock>
 
                             <TextBox
@@ -318,16 +318,6 @@
                                     Click="InsertEmptyRecordBtn_Click"
                                     Width="auto"
                                     Content="Insert empty record"
-                                    IsEnabled="False"
-                                    Style="{StaticResource MaterialDesignOutlinedButton}"
-                                    ToolTip="MaterialDesignOutlinedButton" />
-                            </StackPanel>
-                            <StackPanel Grid.Column="2" Margin="10">
-                                <Button
-                                    Name="InsertIntegratorDataBtn"
-                                    Click="InsertIntegratorDataBtn_Click"
-                                    Width="auto"
-                                    Content="Insert integrator data"
                                     IsEnabled="False"
                                     Style="{StaticResource MaterialDesignOutlinedButton}"
                                     ToolTip="MaterialDesignOutlinedButton" />

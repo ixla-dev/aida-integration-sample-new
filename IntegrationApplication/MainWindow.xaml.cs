@@ -158,6 +158,7 @@ namespace integratorApplication
             var wfState = await _integrationApi.GetWorkflowSchedulerStateAsync();
             if (wfState != null)
             {
+                MachineAddress.IsEnabled = false;
                 _connectionStatus = ConnectionStatus.Connected;
                 GetJoblist();
                 _pollingTimer.Start(); // Start the polling timer after a successful connection
@@ -166,6 +167,7 @@ namespace integratorApplication
             {
                 MessageBox.Show("Incorrect Machine Address");
                 ConnectBtn.IsEnabled = true;
+                MachineAddress.IsEnabled = true;
                 return;
             }
 
@@ -569,11 +571,11 @@ namespace integratorApplication
             if (_connectionStatus == ConnectionStatus.Connected && JobTemplateComboBox.SelectionBoxItem != null &&
                 JobTemplateComboBox.SelectionBoxItem != "")
             {
+                MachineAddress.IsEnabled = false;
                 ConnectBtn.IsEnabled = false;
                 JobTemplateComboBox.IsEnabled = true;
                 ClearRecordsBtn.IsEnabled = true;
                 InsertEmptyJobRecordBtn.IsEnabled = true;
-                InsertIntegratorDataBtn.IsEnabled = true;
                 InsertCsvDataBtn.IsEnabled = true;
             }
 
@@ -583,7 +585,6 @@ namespace integratorApplication
                 JobTemplateComboBox.IsEnabled = false;
                 ClearRecordsBtn.IsEnabled = false;
                 InsertEmptyJobRecordBtn.IsEnabled = false;
-                InsertIntegratorDataBtn.IsEnabled = false;
                 InsertCsvDataBtn.IsEnabled = false;
             }
             
