@@ -305,7 +305,6 @@ namespace integratorApplication
             }
         }
         
-
         private async void GetJoblist()
         {
             try
@@ -568,6 +567,11 @@ namespace integratorApplication
         
         private void UpdateUI()
         {
+            StartJobBtn.IsEnabled = false;
+            StopJobBtn.IsEnabled = false;
+            StopJobAndCurrentRecordBtn.IsEnabled = false;
+            ResumeJobBtn.IsEnabled = false;
+            
             if (_connectionStatus == ConnectionStatus.Connected && JobTemplateComboBox.SelectionBoxItem != null &&
                 JobTemplateComboBox.SelectionBoxItem != "")
             {
@@ -577,9 +581,48 @@ namespace integratorApplication
                 ClearRecordsBtn.IsEnabled = true;
                 InsertEmptyJobRecordBtn.IsEnabled = true;
                 InsertCsvDataBtn.IsEnabled = true;
+
+                switch (_workflowSchedulerStateDto.Status)
+                {
+                    case WorkflowSchedulerStatus.Starting:
+                    case WorkflowSchedulerStatus.Running:
+                    case WorkflowSchedulerStatus.Waiting:
+                        StopJobBtn.IsEnabled = true;
+                        break;
+                    case WorkflowSchedulerStatus.Stopping:
+                        StopJobAndCurrentRecordBtn.IsEnabled = true;
+                        ResumeJobBtn.IsEnabled = true;
+                        break;
+                    case WorkflowSchedulerStatus.Stopped:
+                    case WorkflowSchedulerStatus.Error:
+                        StartJobBtn.IsEnabled = true;
+                        break;
+                }
+
+                if (_dataTable.Rows.Count > 0)
+                {
+                    bool containsError = _dataTable.AsEnumerable()
+                        .Where(row => row["workflow_status"] != DBNull.Value && row["workflow_status"].ToString() != "Finished") 
+                        .Any(row => row["job_error_code"] != DBNull.Value && row["job_error_code"].ToString().Contains("FeederEmpty"));
+
+                    if (containsError)
+                    {
+                        ResumeJobBtn.IsEnabled = true;
+                    }
+                }
+
+                switch (_workflowSchedulerStateDto.StopReason)
+                {
+                    case WorkflowSchedulerStopReason.FeederEmpty:
+                    case WorkflowSchedulerStopReason.CardJam:
+                        StopJobBtn.IsEnabled = true;
+                        StopJobAndCurrentRecordBtn.IsEnabled = true;
+                        ResumeJobBtn.IsEnabled = true;
+                        break;
+                }
             }
 
-            if (_connectionStatus == ConnectionStatus.Disconnected && JobTemplateComboBox.SelectionBoxItem == null)
+            if (_connectionStatus == ConnectionStatus.Disconnected)
             {
                 ConnectBtn.IsEnabled = true;
                 JobTemplateComboBox.IsEnabled = false;
@@ -588,51 +631,9 @@ namespace integratorApplication
                 InsertCsvDataBtn.IsEnabled = false;
             }
             
-            //   
-            // TODO not all conditions were managed
-            //
-            
-            if (_workflowSchedulerStateDto.Status == WorkflowSchedulerStatus.Starting 
-                || _workflowSchedulerStateDto.Status == WorkflowSchedulerStatus.Running 
-                || _workflowSchedulerStateDto.Status == WorkflowSchedulerStatus.Waiting 
-                )
-            {
-                StartJobBtn.IsEnabled = false;
-                StopJobBtn.IsEnabled = true;
-                StopJobAndCurrentRecordBtn.IsEnabled = true;
-                ResumeJobBtn.IsEnabled = false;
-            }
-            //stopping status is when StopWorkflowScheduler(false)
-            if (_workflowSchedulerStateDto.Status == WorkflowSchedulerStatus.Stopping)
-            {
-                StartJobBtn.IsEnabled = false;
-                StopJobBtn.IsEnabled = false;
-                StopJobAndCurrentRecordBtn.IsEnabled = true;
-                ResumeJobBtn.IsEnabled = true;
-            }
-            
-            if ((_workflowSchedulerStateDto.Status == WorkflowSchedulerStatus.Error 
-                || _workflowSchedulerStateDto.Status == WorkflowSchedulerStatus.Stopped) 
-                && (_connectionStatus == ConnectionStatus.Connected && 
-                    JobTemplateComboBox.SelectionBoxItem != null &&
-                    JobTemplateComboBox.SelectionBoxItem != "")
-                )
-            {
-                StartJobBtn.IsEnabled = true;
-                StopJobBtn.IsEnabled = false;
-                StopJobAndCurrentRecordBtn.IsEnabled = false;
-                ResumeJobBtn.IsEnabled = false;
-            }
-            
-            if (_workflowSchedulerStateDto.StopReason == WorkflowSchedulerStopReason.FeederEmpty
-                || _workflowSchedulerStateDto.StopReason == WorkflowSchedulerStopReason.CardJam)
-            {
-                StartJobBtn.IsEnabled = false;
-                StopJobBtn.IsEnabled = true;
-                StopJobAndCurrentRecordBtn.IsEnabled = true;
-                ResumeJobBtn.IsEnabled = true;
-            }
         }
+        
+        
         private void SnackbarMessage_ActionClick(object sender, RoutedEventArgs e)
         {
             MessageSnackbar.IsActive = false;
