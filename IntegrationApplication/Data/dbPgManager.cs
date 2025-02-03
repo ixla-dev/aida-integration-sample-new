@@ -132,8 +132,8 @@ public class dbPgManager
         DataTable dataTable = new DataTable();
         try
         {
-            string query = $@"SELECT job_status, workflow_id, workflow_status, error_detail
-                            FROM {detName} ORDER BY job_status DESC";
+            string query = $@"SELECT job_status, workflow_id, workflow_status, error_detail, job_error_code
+                            FROM {detName} ORDER BY job_id DESC";
 
             using (var command = new NpgsqlCommand(query, _pgConn))
             {
