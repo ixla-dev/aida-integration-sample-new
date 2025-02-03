@@ -52,7 +52,7 @@
                     Click="StartJobBtn_Click"
                     Margin="0 390 0 20"
                     Width="auto"
-                    Content="Start Job"
+                    Content="START"
                     IsEnabled="False"
                     Style="{StaticResource MaterialDesignOutlinedButton}" />
 
@@ -61,7 +61,7 @@
                     Click="StopJobBtn_Click"
                     Margin=" 0 0 0 20"
                     Width="auto"
-                    Content="Stop Job"
+                    Content="STOP"
                     IsEnabled="False"
                     Style="{StaticResource MaterialDesignOutlinedButton}" 
                     ToolTip="Resource name: Stop the issue without stopping the running workflows"/> 
@@ -70,8 +70,9 @@
                     Name="StopJobAndCurrentRecordBtn"
                     Click="StopJobAndCurrentRecordBtn_Click"
                     Margin=" 0 0 0 20"
+                    Padding="0"
                     Width="auto"
-                    Content="Stop Job and Record"
+                    Content="CANCEL RUNNING WF"
                     IsEnabled="False"
                     Style="{StaticResource MaterialDesignOutlinedButton}" 
                     ToolTip="Resource name: Stop the issue and the running workflows"/>
@@ -80,8 +81,7 @@
                     Name="ResumeJobBtn"
                     Click="ResumeJobBtn_OnClick"
                     Width="auto"
-                    Content="Resume Job
-                    "
+                    Content="RESUME"
                     IsEnabled="False"
                     Style="{StaticResource MaterialDesignOutlinedButton}" />
             </StackPanel>
