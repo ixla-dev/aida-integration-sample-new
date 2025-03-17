@@ -1,6 +1,7 @@
 ﻿using System.Data;
 using System.Diagnostics;
 using System.IO;
+using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Windows;
@@ -146,38 +147,78 @@ namespace integratorApplication
             feederEmpty
         }
 
-        private async void ConnectBtn_Click(object sender, RoutedEventArgs e)
-        {
-            ConnectBtn.IsEnabled = false;
-            string BASE_PATH = $"http://{MachineAddress.Text}:5000";
-            _integrationApi = new IntegrationApi(BASE_PATH);
-            _dbPgManager = new dbPgManager();
-            _dbSqlLiteManager = new dbSqlLiteManager();
+private async void ConnectBtn_Click(object sender, RoutedEventArgs e)
+{
+    MachineAddress.IsEnabled = false;
+    ConnectBtn.IsEnabled = false;
+    bool isConnected = false; 
+    
+    try
+    {
+        ConnectBtn.IsEnabled = false;
+        string BASE_PATH = $"http://{MachineAddress.Text}:5000";
+        _integrationApi = new IntegrationApi(BASE_PATH);
+        _dbPgManager = new dbPgManager();
+        _dbSqlLiteManager = new dbSqlLiteManager();
 
-            // Connect to Machine
+        // API Connection
+        try
+        {
             var wfState = await _integrationApi.GetWorkflowSchedulerStateAsync();
             if (wfState != null)
             {
-                MachineAddress.IsEnabled = false;
                 _connectionStatus = ConnectionStatus.Connected;
+                isConnected = true;
                 GetJoblist();
-                _pollingTimer.Start(); // Start the polling timer after a successful connection
+                _pollingTimer.Start();
             }
             else
             {
-                MessageBox.Show("Incorrect Machine Address");
-                ConnectBtn.IsEnabled = true;
-                MachineAddress.IsEnabled = true;
+                MessageBox.Show("Incorrect Machine Address", "Connection Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
-
-            // Connect to in-app DB
-            _dbSqlLiteManager.DbSqlLiteConnect();
-
-            // Connect to Aida DB (PostgreSQL)
-            bool isConnected = _dbPgManager.DbPgConnect(MachineAddress.Text);
-            
         }
+        catch (HttpRequestException ex)
+        {
+            MessageBox.Show($"Connection to Machine failed: {ex.Message}", "Connection Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        // SQLite Connection
+        try
+        {
+            _dbSqlLiteManager.DbSqlLiteConnect();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"SQLite connection failed: {ex.Message}", "Database Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+
+        // PostgreSQL Connection
+        try
+        {
+            bool isPgConnected = _dbPgManager.DbPgConnect(MachineAddress.Text);
+            if (!isPgConnected)
+            {
+                MessageBox.Show("Failed to connect to Aida DB.", "Database Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"PostgreSQL connection failed: {ex.Message}", "Database Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+    catch (Exception ex)
+    {
+        MessageBox.Show($"Unexpected error: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+    }
+    finally
+    {
+        ConnectBtn.IsEnabled = !isConnected;
+        MachineAddress.IsEnabled = !isConnected;
+    }
+}
+
 
         private void OpenMessageDialog(WorkflowMessage e)
         {
