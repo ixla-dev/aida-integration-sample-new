@@ -9,12 +9,12 @@ namespace integratorApplication.Backend;
 
 public class dbPgManager
 {
-    private  string _user = "postgres";
-    private  string _dBname = "ixla_iws";
-    private  string _password = "root";
-    private  string _port = "5432";
+    private string _user = "postgres";
+    private string _dBname = "ixla_iws";
+    private string _password = "root";
+    private string _port = "5432";
 
-    private  NpgsqlConnection _pgConn;
+    private NpgsqlConnection _pgConn;
 
     public bool DbPgConnect(string host)
     {
@@ -70,6 +70,7 @@ public class dbPgManager
                     {
                         dataTable.Columns.Add(reader.GetName(i), reader.GetFieldType(i));
                     }
+
                     //add rows
                     while (reader.Read())
                     {
@@ -78,6 +79,7 @@ public class dbPgManager
                         {
                             row[i] = reader.GetValue(i);
                         }
+
                         dataTable.Rows.Add(row);
                     }
                 }
@@ -87,9 +89,10 @@ public class dbPgManager
         {
             Console.WriteLine(e);
         }
+
         return dataTable;
     }
-    
+
     //select all from DET
     public DataTable SelectAllFromDET(string detName)
     {
@@ -107,6 +110,7 @@ public class dbPgManager
                     {
                         dataTable.Columns.Add(reader.GetName(i), reader.GetFieldType(i));
                     }
+
                     // Add rows
                     while (reader.Read())
                     {
@@ -115,6 +119,7 @@ public class dbPgManager
                         {
                             row[i] = reader.GetValue(i);
                         }
+
                         dataTable.Rows.Add(row);
                     }
                 }
@@ -124,9 +129,10 @@ public class dbPgManager
         {
             Console.WriteLine(e);
         }
+
         return dataTable;
     }
-    
+
     public DataTable GetDataForUI(string detName)
     {
         DataTable dataTable = new DataTable();
@@ -144,6 +150,7 @@ public class dbPgManager
                     {
                         dataTable.Columns.Add(reader.GetName(i), reader.GetFieldType(i));
                     }
+
                     // Add rows
                     while (reader.Read())
                     {
@@ -152,6 +159,7 @@ public class dbPgManager
                         {
                             row[i] = reader.GetValue(i);
                         }
+
                         dataTable.Rows.Add(row);
                     }
                 }
@@ -161,10 +169,10 @@ public class dbPgManager
         {
             Console.WriteLine(e);
         }
+
         return dataTable;
     }
 
-    
 
     //insert example record in DET table
     public void InsertEmptyRecord(List<EntityDescriptor> columns, string detName)
@@ -173,7 +181,7 @@ public class dbPgManager
         {
             // create columnName and columnValues List
             string columnNames = string.Join(", ", columns.Select(c => $"\"{c.EntityName}\""));
-            string parameterNames  = string.Join(", ", columns.Select(c => $"@{c.EntityName}"));
+            string parameterNames = string.Join(", ", columns.Select(c => $"@{c.EntityName}"));
 
             // build query
             string query = $@"
@@ -189,7 +197,7 @@ public class dbPgManager
                 {
                     command.Parameters.AddWithValue($"@{column.EntityName}", DBNull.Value);
                 }
-                
+
                 command.ExecuteNonQuery();
             }
         }
@@ -224,139 +232,139 @@ public class dbPgManager
                 }
             }
         }
+
         return columns;
     }
 
-public void InsertCsvData(string detName, List<EntityDescriptor> entities, List<string[]> csvRows)
-{
-    // image basepath
-    string imagePathBase = Path.Combine(Directory.GetCurrentDirectory(), "Asset", "img");
-
-    if (!Directory.Exists(imagePathBase))
+    public void InsertCsvData(string detName, List<EntityDescriptor> entities, List<string[]> csvRows)
     {
-        throw new DirectoryNotFoundException($"Image path base does not exist: {imagePathBase}");
-    }
+        // image basepath
+        string imagePathBase = Path.Combine(Directory.GetCurrentDirectory(), "Asset", "img");
 
-    foreach (var row in csvRows.Skip(1))
-    {
-        if (row.Length != entities.Count)
+        if (!Directory.Exists(imagePathBase))
         {
-            throw new InvalidOperationException(
-                "The number of values in the CSV row does not match the number of columns.");
+            throw new DirectoryNotFoundException($"Image path base does not exist: {imagePathBase}");
         }
 
-        // Column Name in double quotation mark
-        var quotedColumns = entities.Select(entity => $"\"{entity.EntityName}\"").ToList();
-        var parameterPlaceholders = entities.Select((_, index) => $"@value{index}").ToList();
-        
-        //query
-        string query = $@"
+        foreach (var row in csvRows.Skip(1))
+        {
+            if (row.Length != entities.Count)
+            {
+                throw new InvalidOperationException(
+                    "The number of values in the CSV row does not match the number of columns.");
+            }
+
+            // Column Name in double quotation mark
+            var quotedColumns = entities.Select(entity => $"\"{entity.EntityName}\"").ToList();
+            var parameterPlaceholders = entities.Select((_, index) => $"@value{index}").ToList();
+
+            //query
+            string query = $@"
         INSERT INTO {detName}
         ({string.Join(", ", quotedColumns)})
         VALUES
         ({string.Join(", ", parameterPlaceholders)})";
 
-        using (var command = new NpgsqlCommand(query, _pgConn))
-        {
-            for (int i = 0; i < entities.Count; i++)
+            using (var command = new NpgsqlCommand(query, _pgConn))
             {
-                var entity = entities[i];
-                string value = row[i];
-
-                if (!string.IsNullOrEmpty(entity.ValueType.ToString()) &&
-                    (string.Equals(entity.ValueType.ToString(), "Image", StringComparison.OrdinalIgnoreCase) ||
-                     string.Equals(entity.ValueType.ToString(), "InkjetImage", StringComparison.OrdinalIgnoreCase) ||
-                     string.Equals(entity.ValueType.ToString(), "Signature", StringComparison.OrdinalIgnoreCase)) &&
-                    !string.IsNullOrEmpty(value))
+                for (int i = 0; i < entities.Count; i++)
                 {
-                    // path with image name
-                    string fullImagePath = Path.Combine(imagePathBase, value);
+                    var entity = entities[i];
+                    string value = row[i];
 
-                    if (File.Exists(fullImagePath))
+                    if (!string.IsNullOrEmpty(entity.ValueType.ToString()) &&
+                        (string.Equals(entity.ValueType.ToString(), "Image", StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(entity.ValueType.ToString(), "InkjetImage",
+                             StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(entity.ValueType.ToString(), "Signature", StringComparison.OrdinalIgnoreCase)) &&
+                        !string.IsNullOrEmpty(value))
                     {
-                        // read image like byte array
-                        byte[] imageBytes = File.ReadAllBytes(fullImagePath);
+                        // path with image name
+                        string fullImagePath = Path.Combine(imagePathBase, value);
 
-                        // add byte array
-                        command.Parameters.AddWithValue($"@value{i}", imageBytes);
+                        if (File.Exists(fullImagePath))
+                        {
+                            // read image like byte array
+                            byte[] imageBytes = File.ReadAllBytes(fullImagePath);
+
+                            // add byte array
+                            command.Parameters.AddWithValue($"@value{i}", imageBytes);
+                        }
+                        else
+                        {
+                            Console.WriteLine($"File not found: {fullImagePath}");
+                            command.Parameters.AddWithValue($"@value{i}", DBNull.Value);
+                        }
                     }
                     else
                     {
-                        Console.WriteLine($"File not found: {fullImagePath}");
-                        command.Parameters.AddWithValue($"@value{i}", DBNull.Value);
+                        command.Parameters.AddWithValue($"@value{i}",
+                            string.IsNullOrEmpty(value) ? DBNull.Value : (object)value);
                     }
                 }
-                else
-                {
-                    command.Parameters.AddWithValue($"@value{i}",
-                        string.IsNullOrEmpty(value) ? DBNull.Value : (object)value);
-                }
+
+                // Esecute query
+                command.ExecuteNonQuery();
             }
-            // Esecute query
-            command.ExecuteNonQuery();
         }
     }
-}
-
-    
 
 
-
-
-public void InsertIntegratorData(List<EntityDescriptor> columns, string detName, List<IntegratorData> dataList)
-{
-    try
+    public void InsertIntegratorData(List<EntityDescriptor> columns, string detName, List<IntegratorData> dataList)
     {
-        foreach (var record in dataList)
+        try
         {
-            // Create columnNames and parameter placeholders
-            string columnNames = string.Join(", ", columns.Select(c => $"\"{c.EntityName}\""));
-            string parameterNames = string.Join(", ", columns.Select((c, index) => $"@param{index}"));
+            foreach (var record in dataList)
+            {
+                // Create columnNames and parameter placeholders
+                string columnNames = string.Join(", ", columns.Select(c => $"\"{c.EntityName}\""));
+                string parameterNames = string.Join(", ", columns.Select((c, index) => $"@param{index}"));
 
-            // Build the query
-            string query = $@"
+                // Build the query
+                string query = $@"
                 INSERT INTO {detName}
                 ({columnNames})
                 VALUES 
                 ({parameterNames})";
 
-            using (var command = new NpgsqlCommand(query, _pgConn))
-            {
-                // Add parameters dynamically for each column
-                for (int i = 0; i < columns.Count; i++)
+                using (var command = new NpgsqlCommand(query, _pgConn))
                 {
-                    var column = columns[i];
-                    var value = GetValueForColumn(record, column.EntityName); // You need a method to get the value dynamically
+                    // Add parameters dynamically for each column
+                    for (int i = 0; i < columns.Count; i++)
+                    {
+                        var column = columns[i];
+                        var value = GetValueForColumn(record,
+                            column.EntityName); // You need a method to get the value dynamically
 
-                    // Add the parameter to the command
-                    command.Parameters.AddWithValue($"@param{i}", value ?? DBNull.Value);
+                        // Add the parameter to the command
+                        command.Parameters.AddWithValue($"@param{i}", value ?? DBNull.Value);
+                    }
+
+                    // Execute the query
+                    command.ExecuteNonQuery();
                 }
-
-                // Execute the query
-                command.ExecuteNonQuery();
             }
         }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Insert record error: " + ex.Message);
+        }
     }
-    catch (Exception ex)
-    {
-        Console.WriteLine("Insert record error: " + ex.Message);
-    }
-}
 
 // This method is needed to retrieve the correct value from the record dynamically
-private object GetValueForColumn(IntegratorData record, string columnName)
-{
-    switch (columnName)
+    private object GetValueForColumn(IntegratorData record, string columnName)
     {
-        case "TextFront":
-            return record.TextFront;
-        case "ImgFront":
-            return record.ImgFront;
-        // Add other cases here for each field in IntegratorData
-        default:
-            return null;
+        switch (columnName)
+        {
+            case "TextFront":
+                return record.TextFront;
+            case "ImgFront":
+                return record.ImgFront;
+            // Add other cases here for each field in IntegratorData
+            default:
+                return null;
+        }
     }
-}
 
 
     public void ClearTable(string detName)
@@ -373,6 +381,70 @@ private object GetValueForColumn(IntegratorData record, string columnName)
         catch (Exception ex)
         {
             Console.WriteLine("Delete table error: " + ex.Message);
+        }
+    }
+
+    public async Task InsertLoopingImagesAsync(List<EntityDescriptor> columns, string detName, int numberOfRecords,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var imagePaths = Directory.GetFiles("Asset/loopImages", "*.bmp");
+            int imageCount = imagePaths.Length;
+
+            for (int index = 0; index < numberOfRecords; index++)
+            {
+                // Interruzione se richiesto
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    Console.WriteLine("Insert operation cancelled.");
+                    break;
+                }
+
+                string imagePath = imagePaths[index % imageCount];
+                string columnNames = string.Join(", ", columns.Select(c => $"\"{c.EntityName}\""));
+                string parameterNames = string.Join(", ", columns.Select((c, i) => $"@param{i}"));
+
+                string query = $@"
+            INSERT INTO {detName}
+            ({columnNames})
+            VALUES 
+            ({parameterNames})";
+
+                using (var command = new NpgsqlCommand(query, _pgConn))
+                {
+                    for (int i = 0; i < columns.Count; i++)
+                    {
+                        var column = columns[i];
+                        object value = null;
+
+                        switch (column.EntityName.ToLower())
+                        {
+                            case "inkjetimage":
+                            case "front_test_000__image":
+                            case "varnishimage":
+                                value = File.ReadAllBytes(imagePath);
+                                break;
+                            case "front_test_001__number":
+                                value = index;
+                                break;
+                            default:
+                                value = DBNull.Value;
+                                break;
+                        }
+
+                        command.Parameters.AddWithValue($"@param{i}", value ?? DBNull.Value);
+                    }
+
+                    await command.ExecuteNonQueryAsync(cancellationToken);
+                }
+
+                await Task.Delay(1000, cancellationToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Insert error: " + ex.Message);
         }
     }
 }
