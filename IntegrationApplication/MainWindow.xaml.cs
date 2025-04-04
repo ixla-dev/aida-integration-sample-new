@@ -44,7 +44,6 @@ namespace integratorApplication
         private WorkflowSchedulerStopReason _JobStopReason;
         private CancellationTokenSource _cancellationTokenSource;
         private readonly WebhooksHandler _webhooksHandler;
-        
         public MainWindow()
         {
             InitializeComponent();
@@ -52,12 +51,6 @@ namespace integratorApplication
             ConfigureServices(services);
             _serviceProvider = services.BuildServiceProvider();
             
-            
-            _pollingTimer = new DispatcherTimer
-            {
-                Interval = TimeSpan.FromMilliseconds(5000)
-            };
-            _pollingTimer.Tick += PollingWorkFlowState_Tick;
             _dataTable = new DataTable();
             
             
@@ -153,9 +146,12 @@ private async void ConnectBtn_Click(object sender, RoutedEventArgs e)
     ConnectBtn.IsEnabled = false;
     bool isConnected = false; 
     
+    _cancellationTokenSource = new CancellationTokenSource();
+    
     try
     {
         ConnectBtn.IsEnabled = false;
+        
         string BASE_PATH = $"http://{MachineAddress.Text}:5000";
         _integrationApi = new IntegrationApi(BASE_PATH);
         _dbPgManager = new dbPgManager();
@@ -170,8 +166,7 @@ private async void ConnectBtn_Click(object sender, RoutedEventArgs e)
                 _connectionStatus = ConnectionStatus.Connected;
                 isConnected = true;
                 GetJoblist();
-                _pollingTimer.Start();
-            }
+                _ = MonitorConnectionAsync();            }
             else
             {
                 MessageBox.Show("Incorrect Machine Address", "Connection Error", MessageBoxButton.OK, MessageBoxImage.Error);
@@ -219,6 +214,58 @@ private async void ConnectBtn_Click(object sender, RoutedEventArgs e)
     }
 }
 
+private async Task MonitorConnectionAsync()
+{
+    try
+    {
+        while (!_cancellationTokenSource.Token.IsCancellationRequested)
+        {
+            try
+            {
+                var wfState = await _integrationApi.GetWorkflowSchedulerStateAsync().ConfigureAwait(false);
+                if (wfState == null)
+                {
+                    throw new Exception("Lost connection to machine.");
+                }
+                
+                _connectionStatus = ConnectionStatus.Connected;
+                
+                // Update the UI
+                Application.Current.Dispatcher.Invoke(UpdateUI);
+
+                // Load data 
+                Application.Current.Dispatcher.Invoke(LoadData);
+                    
+                _jobStatus = wfState.Status ?? WorkflowSchedulerStatus.Stopped;
+                _JobStopReason = wfState.StopReason ?? WorkflowSchedulerStopReason.ManualStop;
+
+                // Update UI controls
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    StatusTextBlock.Text = $"Status: {_jobStatus}";
+                    StopReasonTextBlock.Text = $"Stop Reason: {_JobStopReason}";
+                    ProgressBar.IsIndeterminate = (_jobStatus == WorkflowSchedulerStatus.Running ||
+                                                   _jobStatus == WorkflowSchedulerStatus.Starting ||
+                                                   _jobStatus == WorkflowSchedulerStatus.Waiting);
+                });
+                
+                await Task.Delay(2000,_cancellationTokenSource.Token);
+            }
+            catch (HttpRequestException ex)
+            {
+                _connectionStatus = ConnectionStatus.Disconnected;
+                Application.Current.Dispatcher.Invoke(UpdateUI);
+                MessageBox.Show($"Connection lost: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                break;
+            }
+        }
+    }
+    finally
+    {
+        _cancellationTokenSource.Dispose();
+    }
+}
+
 
         private void OpenMessageDialog(WorkflowMessage e)
         {
@@ -258,41 +305,7 @@ private async void ConnectBtn_Click(object sender, RoutedEventArgs e)
                 });
             Application.Current.Dispatcher.Invoke(() => { MessageSnackbar.IsActive = false; });
         }
-
-        private async void PollingWorkFlowState_Tick(object? sender, EventArgs e)
-        {
-                try
-                {
-                    // Ping the machine
-                    _workflowSchedulerStateDto = await _integrationApi.GetWorkflowSchedulerStateAsync().ConfigureAwait(false);                   
-                    _connectionStatus = ConnectionStatus.Connected;
-
-                    // Update the UI
-                    Application.Current.Dispatcher.Invoke(UpdateUI);
-
-                    // Load data 
-                    Application.Current.Dispatcher.Invoke(LoadData);
-                    
-                    _jobStatus = _workflowSchedulerStateDto.Status ?? WorkflowSchedulerStatus.Stopped;
-                    _JobStopReason = _workflowSchedulerStateDto.StopReason ?? WorkflowSchedulerStopReason.ManualStop;
-
-                    // Update UI controls
-                    Application.Current.Dispatcher.Invoke(() =>
-                    {
-                        StatusTextBlock.Text = $"Status: {_jobStatus}";
-                        StopReasonTextBlock.Text = $"Stop Reason: {_JobStopReason}";
-                        ProgressBar.IsIndeterminate = (_jobStatus == WorkflowSchedulerStatus.Running ||
-                                                       _jobStatus == WorkflowSchedulerStatus.Starting ||
-                                                       _jobStatus == WorkflowSchedulerStatus.Waiting);
-                    });
-                }
-                catch (Exception exception)
-                {
-                    Console.WriteLine("Disconnected");
-                    _connectionStatus = ConnectionStatus.Disconnected;
-                    Application.Current.Dispatcher.Invoke(UpdateUI);
-                }
-        }
+        
 
         #region Windows tools
 
@@ -670,6 +683,7 @@ private async void ConnectBtn_Click(object sender, RoutedEventArgs e)
                 ClearRecordsBtn.IsEnabled = false;
                 InsertEmptyJobRecordBtn.IsEnabled = false;
                 InsertCsvDataBtn.IsEnabled = false;
+                JobTemplateComboBox.IsEnabled = false;
             }
             
         }

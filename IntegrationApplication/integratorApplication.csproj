@@ -13,6 +13,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Aida.Sdk.Mini" Version="1.0.703.2" />
     <PackageReference Include="MaterialDesignColors" Version="3.0.0" />
     <PackageReference Include="MaterialDesignThemes" Version="5.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="8.0.6" />
@@ -24,7 +25,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Aida.Sdk.Mini\src\Aida.Sdk.Mini\Aida.Sdk.Mini.csproj" />
     <ProjectReference Include="..\Samples.Integration.Webhooks\Samples.Integration.Webhooks.csproj" />
   </ItemGroup>
 
